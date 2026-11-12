@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Authorization-Integrity Layer — Multi-Tenant Industrial RAG (Phase-II Demo)</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <!-- TOP PRESENTATION HEADER -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand-badges">
+        <span class="badge badge-sdg">SDG 9 · Industry, Innovation &amp; Infrastructure</span>
+        <span class="badge badge-phase">EL Phase-II Partial Presentation Prototype</span>
+        <span id="controlPlaneBadge" class="badge badge-online">● Control Plane: ONLINE</span>
+      </div>
+      <h1>Beyond Metadata Filtering: An Authorization-Integrity Layer for Secure Multi-Tenant Industrial RAG</h1>
+      <p class="subtitle">
+        Independent Policy Verification · Candidate-Level Enforcement · Fail-Closed Guarantee · Quarantine &amp; Revocation Handling
+      </p>
+    </div>
+    <div class="header-actions">
+      <button id="btnGuidedDemo" class="btn btn-accent" title="Run a guided 1-click walkthrough for evaluators">
+        ▶ Run Guided Demo Scenario
+      </button>
+      <button id="btnResetState" class="btn btn-outline" title="Reset all faults, quarantine, and policies to clean baseline">
+        ↺ Reset Clean State
+      </button>
+    </div>
+  </header>
+
+  <!-- LIVE TELEMETRY RIBBON -->
+  <section class="kpi-ribbon">
+    <div class="kpi-card">
+      <span class="kpi-label">Industrial Tenants</span>
+      <span class="kpi-value" id="kpiTenants">5 Factories</span>
+      <span class="kpi-sub">Factory A – E Shared Corpus</span>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-label">Indexed RAG Documents</span>
+      <span class="kpi-value" id="kpiTotalDocs">10</span>
+      <span class="kpi-sub">Manuals · SOPs · Supplier Specs</span>
+    </div>
+    <div class="kpi-card" id="kpiDiscrepancyCard">
+      <span class="kpi-label">Metadata vs. Policy Discrepancies</span>
+      <span class="kpi-value" id="kpiDiscrepancies">0</span>
+      <span class="kpi-sub">Untrusted Vector Tag Mismatches</span>
+    </div>
+    <div class="kpi-card" id="kpiQuarantineCard">
+      <span class="kpi-label">Quarantined Records</span>
+      <span class="kpi-value" id="kpiQuarantined">0</span>
+      <span class="kpi-sub">Isolated from LLM Context</span>
+    </div>
+    <div class="kpi-card" id="kpiFaultsCard">
+      <span class="kpi-label">Active Injected Faults</span>
+      <span class="kpi-value" id="kpiActiveFaults">0 / 5</span>
+      <span class="kpi-sub">Stage 4 Fault Injection</span>
+    </div>
+  </section>
+
+  <!-- NAVIGATION TABS -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="tab-simulator">
+      1. Live RAG Query &amp; Architecture Simulator
+    </button>
+    <button class="tab-btn" data-tab="tab-control-plane">
+      2. Policy Registry, Discrepancy Inspector &amp; Quarantine
+    </button>
+    <button class="tab-btn" data-tab="tab-evaluation">
+      3. Stage-5 Evaluation Benchmark &amp; Metrics
+    </button>
+  </nav>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="main-container">
+
+    <!-- ================================================================== -->
+    <!-- TAB 1: LIVE RAG QUERY & ARCHITECTURE SIMULATOR                     -->
+    <!-- ================================================================== -->
+    <section id="tab-simulator" class="tab-panel active">
+
+      <!-- STAGE 4: FAULT INJECTION BAR -->
+      <div class="panel-card fault-strip-card">
+        <div class="card-header-row">
+          <div>
+            <h2>Stage 4 · Interactive Fault Injection Controls</h2>
+            <p class="card-desc">
+              Inject controlled metadata corruption, permission revocations, or policy-service failures to test whether unauthorized documents leak to the LLM.
+            </p>
+          </div>
+          <div class="fault-quick-buttons">
+            <button id="btnInjectAllFaults" class="btn btn-sm btn-warning">⚡ Inject Faults 1–3</button>
+            <button id="btnClearAllFaults" class="btn btn-sm btn-outline">Clear Faults</button>
+          </div>
+        </div>
+        <div id="faultTogglesContainer" class="fault-grid">
+          <!-- Populated dynamically by app.js -->
+        </div>
+      </div>
+
+      <!-- INTERACTIVE SYSTEM ARCHITECTURE DIAGRAM (Matches Slide 10) -->
+      <div class="panel-card arch-card">
+        <div class="card-header-row">
+          <div>
+            <h2>Proposed System Architecture — Live Execution Trace</h2>
+            <p class="card-desc">
+              Visualizes the exact Ingestion Path, Query Path (1 → 5), and Control Plane enforcement boundary from Slide 10.
+            </p>
+          </div>
+          <div id="archStatusPill" class="arch-status-pill">Ready — Select a query below to trace execution</div>
+        </div>
+
+        <div class="arch-diagram">
+          <!-- INGESTION PATH -->
+          <div class="arch-lane arch-lane-ingestion">
+            <div class="lane-title">INGESTION PATH</div>
+            <div class="arch-flow-row">
+              <div class="arch-node" id="node-docs">
+                <div class="node-title">Industrial Documents</div>
+                <div class="node-sub">manuals · SOPs · specs</div>
+              </div>
+              <div class="arch-arrow">→</div>
+              <div class="arch-node node-highlight-teal" id="node-ingest-gate">
+                <div class="node-title">Ingestion &amp; Integrity Validation</div>
+                <div class="node-sub">verify ownership vs. policy</div>
+              </div>
+              <div class="arch-arrow">→</div>
+              <div class="arch-node" id="node-embed">
+                <div class="node-title">Embedding Model</div>
+                <div class="node-sub">local vector encoder</div>
+              </div>
+              <div class="arch-arrow">→</div>
+              <div class="arch-node" id="node-vectordb">
+                <div class="node-title">Vector DB</div>
+                <div class="node-sub">chunks · vectors · tenant tags</div>
+              </div>
+              <div class="arch-arrow arch-arrow-danger">↘ mismatch</div>
+              <div class="arch-node node-danger" id="node-quarantine">
+                <div class="node-title">Quarantine Store</div>
+                <div class="node-sub">inconsistent docs (<span id="archQuarantineCount">0</span>)</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- QUERY PATH -->
+          <div class="arch-lane arch-lane-query">
+            <div class="lane-title">QUERY PATH (Steps 1 → 5)</div>
+            <div class="arch-flow-row">
+              <div class="arch-node" id="node-user">
+                <span class="step-num">1</span>
+                <div class="node-title">Tenant User</div>
+                <div class="node-sub" id="archActiveTenantLabel">Factory B</div>
+              </div>
+              <div class="arch-arrow">→</div>
+              <div class="arch-node" id="node-api">
+                <div class="node-title">Query API</div>
+                <div class="node-sub">FastAPI · auth</div>
+              </div>
+              <div class="arch-arrow">→</div>
+              <div class="arch-node" id="node-retriever">
+                <span class="step-num">2</span>
+                <div class="node-title">Retriever</div>
+                <div class="node-sub">top-k vector search</div>
+              </div>
+              <div class="arch-arrow">→</div>
+              <div class="arch-node node-highlight-blue" id="node-gateway">
+                <span class="step-num">3</span>
+                <div class="node-title">Retrieval Gateway</div>
+                <div class="node-sub">policy-enforced release</div>
+              </div>
+              <div class="arch-arrow">→</div>
+              <div class="arch-node" id="node-llm">
+                <span class="step-num">4</span>
+                <div class="node-title">LLM Generator</div>
+                <div class="node-sub">authorized context only</div>
+              </div>
+              <div class="arch-arrow">→</div>
+              <div class="arch-node" id="node-response">
+                <span class="step-num">5</span>
+                <div class="node-title">Response</div>
+                <div class="node-sub">to tenant user</div>
+              </div>
+              <div class="arch-arrow arch-arrow-danger">↑ deny</div>
+              <div class="arch-node node-danger" id="node-denied">
+                <div class="node-title">Denied · Fail Closed</div>
+                <div class="node-sub">logged, never sent to LLM</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CONTROL PLANE -->
+          <div class="arch-lane arch-lane-control">
+            <div class="lane-title">CONTROL PLANE (Trusted Enforcement Boundary)</div>
+            <div class="arch-flow-row">
+              <div class="arch-node" id="node-revocation">
+                <div class="node-title">Revocation &amp; Consistency Handler</div>
+                <div class="node-sub">policy version updates</div>
+              </div>
+              <div class="arch-arrow">→</div>
+              <div class="arch-node node-highlight-teal" id="node-registry">
+                <div class="node-title">Trusted Policy Registry</div>
+                <div class="node-sub">authoritative owners · versions · HMAC</div>
+              </div>
+              <div class="arch-arrow">↔</div>
+              <div class="arch-node node-highlight-teal" id="node-ade">
+                <div class="node-title">Authorization Decision Engine</div>
+                <div class="node-sub">deny by default · fail-closed</div>
+              </div>
+              <div class="arch-arrow">→</div>
+              <div class="arch-node" id="node-audit">
+                <div class="node-title">Immutable Audit Log</div>
+                <div class="node-sub">decisions · discrepancies</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- QUERY EXECUTION CONSOLE -->
+      <div class="panel-card query-console-card">
+        <h2>Interactive Multi-Tenant Query Console</h2>
+        <div class="query-controls-grid">
+          <div class="form-group">
+            <label for="selectTenant">1. Requesting Organization (Tenant Identity)</label>
+            <select id="selectTenant" class="form-control"></select>
+          </div>
+          <div class="form-group">
+            <label for="selectPresetQuery">2. Ground-Truth Industrial Scenario Query</label>
+            <select id="selectPresetQuery" class="form-control"></select>
+          </div>
+        </div>
+        <div class="query-input-row">
+          <input
+            type="text"
+            id="inputQueryText"
+            class="form-control query-text-input"
+            placeholder="Enter industrial RAG query (e.g. HP-9000 turbine blade tip clearance and torque specification)..."
+          />
+          <button id="btnRunQuery" class="btn btn-primary btn-lg">
+            🔍 Execute Query Across All 3 Architectures
+          </button>
+        </div>
+        <div id="presetQueryHint" class="query-scenario-hint"></div>
+      </div>
+
+      <!-- 3-WAY ARCHITECTURE COMPARISON RESULTS -->
+      <div class="comparison-grid">
+        <!-- Baseline 1 -->
+        <div class="panel-card baseline-card" id="card-shared-filter">
+          <div class="arch-col-header">
+            <div>
+              <span class="arch-tag tag-baseline">Baseline 1</span>
+              <h3>Shared Index + Metadata Filtering</h3>
+            </div>
+            <span class="latency-pill" id="lat-shared-filter">— ms</span>
+          </div>
+          <p class="arch-col-desc">
+            Filters retrieval using only vector DB metadata tags (<code>metadata_allowed_tags</code>). Trusts metadata blindly.
+          </p>
+          <div id="verdict-shared-filter" class="security-banner banner-neutral">
+            Run a query to inspect retrieval behavior
+          </div>
+          <div class="llm-box">
+            <div class="llm-box-label">LLM Generator Output</div>
+            <div id="llm-shared-filter" class="llm-box-content">—</div>
+          </div>
+          <div class="candidates-header">Retrieved Chunks Passed to LLM</div>
+          <div id="cand-shared-filter" class="candidates-list"></div>
+        </div>
+
+        <!-- Baseline 2 -->
+        <div class="panel-card baseline-card" id="card-separate-index">
+          <div class="arch-col-header">
+            <div>
+              <span class="arch-tag tag-baseline">Baseline 2</span>
+              <h3>Separate Index per Tenant</h3>
+            </div>
+            <span class="latency-pill" id="lat-separate-index">— ms</span>
+          </div>
+          <p class="arch-col-desc">
+            Maintains 5 separate vector indices. High storage cost and does not enforce live policy revocations on shared docs.
+          </p>
+          <div id="verdict-separate-index" class="security-banner banner-neutral">
+            Run a query to inspect retrieval behavior
+          </div>
+          <div class="llm-box">
+            <div class="llm-box-label">LLM Generator Output</div>
+            <div id="llm-separate-index" class="llm-box-content">—</div>
+          </div>
+          <div class="candidates-header">Retrieved Chunks Passed to LLM</div>
+          <div id="cand-separate-index" class="candidates-list"></div>
+        </div>
+
+        <!-- Proposed Integrity Layer -->
+        <div class="panel-card proposed-card" id="card-integrity-layer">
+          <div class="arch-col-header">
+            <div>
+              <span class="arch-tag tag-proposed">Proposed System (Stage 3)</span>
+              <h3>Authorization-Integrity Layer</h3>
+            </div>
+            <span class="latency-pill" id="lat-integrity-layer">— ms</span>
+          </div>
+          <p class="arch-col-desc">
+            Validates every retrieved candidate against the <strong>Trusted Policy Registry</strong>. Enforces fail-closed blocking &amp; quarantine.
+          </p>
+          <div id="verdict-integrity-layer" class="security-banner banner-neutral">
+            Run a query to inspect retrieval behavior
+          </div>
+          <div class="llm-box">
+            <div class="llm-box-label">LLM Generator Output (Verified Context Only)</div>
+            <div id="llm-integrity-layer" class="llm-box-content">—</div>
+          </div>
+          <div class="candidates-header">Candidate-Level Retrieval Gateway Decisions</div>
+          <div id="cand-integrity-layer" class="candidates-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- TAB 2: POLICY REGISTRY, DISCREPANCY INSPECTOR & QUARANTINE         -->
+    <!-- ================================================================== -->
+    <section id="tab-control-plane" class="tab-panel">
+      <div class="panel-card">
+        <div class="card-header-row">
+          <div>
+            <h2>Vector Metadata vs. Trusted Policy Registry Inspector</h2>
+            <p class="card-desc">
+              Live comparison between untrusted Vector DB metadata tags and the authoritative Control Plane Policy Registry. Discrepancies are highlighted automatically.
+            </p>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Doc ID</th>
+                <th>Document Title &amp; Type</th>
+                <th>Canary Identifier</th>
+                <th>Vector DB Metadata (Untrusted)</th>
+                <th>Trusted Policy Registry (Authoritative)</th>
+                <th>HMAC Policy Sig</th>
+                <th>Integrity State</th>
+              </tr>
+            </thead>
+            <tbody id="policyInspectorTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="two-col-grid">
+        <!-- INGESTION VALIDATION TESTER -->
+        <div class="panel-card">
+          <h2>Ingestion-Time Integrity Gate Simulator</h2>
+          <p class="card-desc">
+            Test the top path of the architecture diagram: attempt to ingest a document with an incorrect tenant metadata label and watch the Ingestion Gate quarantine it before embedding.
+          </p>
+          <form id="formIngestTest" class="ingest-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Document ID</label>
+                <input type="text" id="ingDocId" class="form-control" value="DOC-FA-109" required />
+              </div>
+              <div class="form-group">
+                <label>Document Title</label>
+                <input type="text" id="ingTitle" class="form-control" value="Compressor Rotor Balancing Tolerance Spec" required />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Authoritative Policy Owner (Registry)</label>
+                <select id="ingAuthOwner" class="form-control">
+                  <option value="Factory A" selected>Factory A (True Owner)</option>
+                  <option value="Factory B">Factory B</option>
+                  <option value="Factory C">Factory C</option>
+                  <option value="Factory D">Factory D</option>
+                  <option value="Factory E">Factory E</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Pipeline Claimed Metadata Tag (Untrusted)</label>
+                <select id="ingClaimedTag" class="form-control">
+                  <option value="Factory A">Factory A (Matches Owner)</option>
+                  <option value="Factory B" selected>Factory B (Mislabeled Tag!)</option>
+                  <option value="Factory C">Factory C (Mislabeled Tag!)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Document Content</label>
+              <textarea id="ingContent" class="form-control" rows="2">Confidential Factory A compressor rotor dynamic balancing tolerance is 0.25 g*mm/kg at 12,000 RPM [CANARY-FA-ROTOR-109].</textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">
+              🛡️ Test Ingestion &amp; Integrity Validation Gate
+            </button>
+          </form>
+          <div id="ingestResultBanner" class="ingest-result-banner hidden"></div>
+        </div>
+
+        <!-- QUARANTINE VAULT -->
+        <div class="panel-card">
+          <h2>Quarantine Vault (Inconsistent Records)</h2>
+          <p class="card-desc">
+            Documents flagged at either the Ingestion Gate or Retrieval Gateway due to metadata-policy mismatch or unverifiable policy signatures.
+          </p>
+          <div id="quarantineListContainer" class="quarantine-list"></div>
+        </div>
+      </div>
+
+      <!-- AUDIT LOG -->
+      <div class="panel-card">
+        <h2>Control Plane Immutable Audit Log</h2>
+        <p class="card-desc">
+          Every allow, deny, fail-closed block, revocation, and quarantine action is recorded for industrial compliance auditing.
+        </p>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Audit ID</th>
+                <th>Timestamp</th>
+                <th>Event Type</th>
+                <th>Requesting Tenant</th>
+                <th>Doc ID</th>
+                <th>Decision</th>
+                <th>Detailed Rationale</th>
+              </tr>
+            </thead>
+            <tbody id="auditLogTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- TAB 3: STAGE-5 EVALUATION BENCHMARK & METRICS                      -->
+    <!-- ================================================================== -->
+    <section id="tab-evaluation" class="tab-panel">
+      <div class="panel-card">
+        <div class="card-header-row">
+          <div>
+            <h2>Stage 5 · Automated Security &amp; Performance Evaluation Suite</h2>
+            <p class="card-desc">
+              Evaluates the Proposed Authorization-Integrity Layer against both baselines across all controlled faults, measuring Cross-Tenant Leakage, Detection Rate, Revocation Delay, Recall@5, nDCG@5, and p95 Latency.
+            </p>
+          </div>
+          <button id="btnRunBenchmark" class="btn btn-primary btn-lg">
+            📊 Run Automated Benchmark Suite (5x Repeated Runs)
+          </button>
+        </div>
+
+        <!-- VISUAL METRIC BARS -->
+        <div id="evalVisualGrid" class="eval-visual-grid">
+          <!-- Populated by app.js -->
+        </div>
+
+        <!-- SUMMARY METRICS TABLE -->
+        <h3 class="section-subhead">Quantitative Architecture Comparison Table (Objectives O3 &amp; O4)</h3>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Architecture / Baseline</th>
+                <th>Cross-Tenant Leakage Rate ↓</th>
+                <th>Fault Detection Rate ↑</th>
+                <th>Revocation Enforcement Delay</th>
+                <th>Authorized Recall@5 ↑</th>
+                <th>Authorized nDCG@5 ↑</th>
+                <th>Median Latency (p50)</th>
+                <th>Tail Latency (p95)</th>
+                <th>Index Storage Overhead</th>
+              </tr>
+            </thead>
+            <tbody id="evalSummaryTableBody"></tbody>
+          </table>
+        </div>
+
+        <!-- SCENARIO BREAKDOWN TABLE -->
+        <h3 class="section-subhead">Fault-by-Fault Security Verification Matrix</h3>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Controlled Fault Scenario (Stage 4)</th>
+                <th>Querying Tenant</th>
+                <th>Target Document</th>
+                <th>Baseline 1 (Metadata Filter)</th>
+                <th>Baseline 2 (Separate Index)</th>
+                <th>Proposed Integrity Layer</th>
+              </tr>
+            </thead>
+            <tbody id="evalScenariosTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
